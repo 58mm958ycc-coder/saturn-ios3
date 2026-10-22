@@ -8,21 +8,39 @@ on:
 jobs:
   build:
     runs-on: macos-latest
-
     steps:
-      - name: Checkout Repository
+      - name: Checkout this repo
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Checkout the real Saturn source
+        uses: actions/checkout@v4
+        with:
+          repository: Llennpie/Saturn
+          ref: legacy
+          path: Saturn
+          submodules: recursive
+
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: Run iOS Compiler & IPA Packager
-        run: python build_ios.py
+      # Step 1: proves the IPA/signing pipeline works (should show a GREEN screen).
+      - name: Build visible test app
+        run: python build_ios.py test
 
-      - name: Upload IPA Artifact
+      # Step 2: the real attempt. Allowed to fail; logs are uploaded either way.
+      - name: Try compiling real Saturn
+        continue-on-error: true
+        run: python build_ios.py saturn
+
+      - name: Upload results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: SaturnCompletePackage
-          path: SaturnCompletePackage.ipa
+          name: SaturnResults
+          path: |
+            SaturnTest.ipa
+            SaturnCompletePackage.ipa
+            compile_errors.log
+            link_errors.log
+          if-no-files-found: ignore
